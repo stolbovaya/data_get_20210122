@@ -29,4 +29,7 @@ headers = {'Authorization': 'Bearer ' + IAM_oauth_token}
 response = requests.post('https://translate.api.cloud.yandex.net/translate/v2/translate', headers=headers,
                          params=params)
 
-print(response.json())
+data = response.json()
+with open('response_token.json', 'w', encoding='utf-8') as file:
+    json.dump(data, file, indent=2, ensure_ascii=False)
+
