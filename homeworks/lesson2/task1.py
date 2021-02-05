@@ -13,36 +13,18 @@
 
 import json
 import re
-
 from bs4 import BeautifulSoup as bs
 import requests
 
 
 def get_salary(list_salary):
+    max_salary_int = None
+    min_salary_int = None
     max_salary = None
     min_salary = None
-    currency = 'RUB'
-    if list_salary.count('По договорённости') > 0:
-        max_salary = None
-        min_salary = None
-    if list_salary.count('от') > 0:
-        max_salary = None
-        min_salary = list_salary[4].replace(' ', '').replace('руб.', '')
-    if list_salary.count('до') > 0:
-        max_salary = list_salary[4].replace(' ', '').replace('руб.', '')
-        min_salary = None
-    if list_salary.count('<span> <!-- -->—<!-- --> </span>') > 0:
-        max_salary = list_salary[2].replace(' ', '').replace('руб.', '')
-        min_salary = list_salary[0].replace(' ', '').replace('руб.', '')
-
-    return {'min_salary': min_salary, 'max_salary': max_salary, 'currency': currency}
-
-
-def get_salary_HH(list_salary):
-    max_salary = None
-    min_salary = None
-    currency = 'RUB'
+    currency = None
     if len(list_salary) > 0:
+        currency = 'RUB'
         if list_salary[0].text.find('USD') > -1:
             currency = 'USD'
         if list_salary[0].text.find('EUR') > -1:
@@ -51,34 +33,37 @@ def get_salary_HH(list_salary):
             min_salary = re.findall(r'\d+', list_salary[0].text.replace(' ', ''))[0]
         if list_salary[0].text.find('до') > -1:
             max_salary = re.findall(r'\d+', list_salary[0].text.replace(' ', ''))[0]
-        if list_salary[0].text.find('-') > -1:
+        if list_salary[0].text.find('-') > -1 or list_salary[0].text.find('—') > -1:
             f_salary = re.findall(r'\d+', list_salary[0].text.replace(' ', ''))
             min_salary = f_salary[0]
             max_salary = f_salary[1]
-    return {'min_salary': min_salary, 'max_salary': max_salary, 'currency': currency}
+        try:
+            min_salary_int = int(min_salary)
+        except TypeError:
+            pass
+
+        try:
+            max_salary_int = int(max_salary)
+        except TypeError:
+            pass
+
+    return {'min_salary': min_salary_int, 'max_salary': max_salary_int, 'currency': currency}
 
 
 vacances = []
 
-bl_find = True
 find_vacancy = 'Data engineer bank'
-
-id_page = 2
 url = 'https://russia.superjob.ru'
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.104 Safari/537.36'}
+
 my_params = {'keywords': find_vacancy}
 response = requests.get(url + '/vacancy/search/', params=my_params, headers=headers)
-
-while bl_find:
+id_page = 2
+while True:
     soup = bs(response.text, 'html.parser')
+    vacancy = soup.find_all('div', {'class': 'f-test-vacancy-item'})
 
-    vacancy = soup.find_all('div', {'class': 'iJCa5 f-test-vacancy-item _1fma_ undefined _2nteL'})
-    next_page = soup.find_all('a', {'href': '/vacancy/search/?keywords=' + find_vacancy + '&page=' + str(id_page)},
-                              limit=1)
-
-    if len(next_page) == 0:
-        bl_find = False
     for vacancy_item in list(vacancy):
         vacancy_atr = list(vacancy_item.find_all('a', {'class': 'icMQ_'}))
         vacancy_location = list(vacancy_item.find_all('span', {'class': 'f-test-text-company-item-location'}))
@@ -88,48 +73,44 @@ while bl_find:
             vacancy_location_time = vacancy_location[0].text[0:fs - 1]
             vacancy_location_place = vacancy_location[0].text[fs + 2:]
         else:
-            vacancy_location_place = ''
-            vacancy_location_time = ''
+            vacancy_location_place = None
+            vacancy_location_time = None
 
         if len(vacancy_atr) > 0:
             vacancy_name = vacancy_atr[0].text
             vacancy_href = url + vacancy_atr[0].attrs.get('href')
         else:
-            vacancy_name = ''
-            vacancy_href = ''
+            vacancy_name = None
+            vacancy_href = None
 
         if len(vacancy_atr) > 1:
             vacancy_company = vacancy_atr[1].text
         else:
-            vacancy_company = ''
+            vacancy_company = None
 
-        vacancy_salary = get_salary(list(map(str, list(vacancy_item.find_all('span', {'class': '_3mfro'})[0]))))
+        vacancy_salary = get_salary(list(vacancy_item.find_all('span', {'class': '_3mfro'})))
 
-        vacances.append([vacancy_name, vacancy_href, vacancy_company, vacancy_location_place, vacancy_location_time,
-                         vacancy_salary])
+        vacances.append({'vacancy_name': vacancy_name, 'vacancy_href': vacancy_href, 'vacancy_company': vacancy_company,
+                         'vacancy_location_place': vacancy_location_place,
+                         'vacancy_location_time': vacancy_location_time,
+                         'vacancy_salary': vacancy_salary})
 
-    my_params = {'keywords': find_vacancy, 'page': str(id_page)}
-    response = requests.get(url + '/vacancy/search/', params=my_params, headers=headers)
+    my_href = '/vacancy/search/?keywords=' + find_vacancy + '&page=' + str(id_page)
+    if len(soup.find_all('a', {'href': my_href}, limit=1)) == 0:
+        break
+    response = requests.get(url + my_href, headers=headers)
     id_page += 1
 
-bl_find = True
 id_page = 2
-
-url = 'https://rostov.hh.ru/search/vacancy?clusters=true&enable_snippets=true&salary=&st=searchVacancy&text=' + find_vacancy.replace(
+url = 'https://rostov.hh.ru'
+my_href = '/search/vacancy?clusters=true&enable_snippets=true&salary=&st=searchVacancy&text=' + find_vacancy.replace(
     ' ', '+')
+response = requests.get(url + my_href, headers=headers)
 
-response = requests.get(url, headers=headers)
-
-while bl_find:
+while True:
     soup = bs(response.text, 'html.parser')
-
     vacancy = soup.find_all('div', {'class': 'vacancy-serp-item'})
-    next_page = soup.find_all('a', {
-        'href': '/search/vacancy?L_is_autosearch=false&clusters=true&enable_snippets=true&text=' + find_vacancy.replace(
-            ' ', '+') + '&page=' + str(id_page)}, limit=1)
 
-    if len(next_page) == 0:
-        bl_find = False
     for vacancy_item in list(vacancy):
         vacancy_atr = list(vacancy_item.find_all('a', {'class': 'bloko-link HH-LinkModifier'}))
         vacancy_company = list(vacancy_item.find_all('div', {'class': 'vacancy-serp-item__meta-info-company'}))
@@ -160,13 +141,17 @@ while bl_find:
         else:
             vacancy_company = ''
 
-        vacancy_salary = get_salary_HH(vacancy_salary_list)
-        vacances.append([vacancy_name, vacancy_href, vacancy_company, vacancy_location_place, vacancy_location_time,
-                         vacancy_salary])
+        vacancy_salary = get_salary(vacancy_salary_list)
+        vacances.append({'vacancy_name': vacancy_name, 'vacancy_href': vacancy_href, 'vacancy_company': vacancy_company,
+                         'vacancy_location_place': vacancy_location_place,
+                         'vacancy_location_time': vacancy_location_time,
+                         'vacancy_salary': vacancy_salary})
 
-    response = requests.get(
-        'https://rostov.hh.ru/search/vacancy?L_is_autosearch=false&clusters=true&enable_snippets=true&text=' + find_vacancy.replace(
-            ' ', '+') + '&page=' + str(id_page), headers=headers)
+    my_href = '/search/vacancy?L_is_autosearch=false&clusters=true&enable_snippets=true&text=' + find_vacancy.replace(
+        ' ', '+') + '&page=' + str(id_page)
+    if len(soup.find_all('a', {'href': my_href}, limit=1)) == 0:
+        break
+    response = requests.get(url + my_href, headers=headers)
     id_page += 1
 
 print(json.dumps(vacances, indent=4, sort_keys=True, ensure_ascii=False))
