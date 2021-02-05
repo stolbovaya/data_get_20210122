@@ -21,6 +21,7 @@ import requests
 def get_salary(list_salary):
     max_salary = None
     min_salary = None
+    currency = 'RUB'
     if list_salary.count('По договорённости') > 0:
         max_salary = None
         min_salary = None
@@ -34,22 +35,28 @@ def get_salary(list_salary):
         max_salary = list_salary[2].replace(' ', '').replace('руб.', '')
         min_salary = list_salary[0].replace(' ', '').replace('руб.', '')
 
-    return {'min_salary': min_salary, 'max_salary': max_salary}
+    return {'min_salary': min_salary, 'max_salary': max_salary, 'currency': currency}
 
 
 def get_salary_HH(list_salary):
     max_salary = None
     min_salary = None
+    currency = 'RUB'
     if len(list_salary) > 0:
+        if list_salary[0].text.find('USD') > -1:
+            currency = 'USD'
+        if list_salary[0].text.find('EUR') > -1:
+            currency = 'EUR'
         if list_salary[0].text.find('от') > -1:
-            min_salary = re.findall(r'\d+',list_salary[0].text.replace(' ', ''))[0]
+            min_salary = re.findall(r'\d+', list_salary[0].text.replace(' ', ''))[0]
         if list_salary[0].text.find('до') > -1:
-            max_salary = re.findall(r'\d+',list_salary[0].text.replace(' ', ''))[0]
+            max_salary = re.findall(r'\d+', list_salary[0].text.replace(' ', ''))[0]
         if list_salary[0].text.find('-') > -1:
-            f_salary = re.findall(r'\d+',list_salary[0].text.replace(' ', ''))
+            f_salary = re.findall(r'\d+', list_salary[0].text.replace(' ', ''))
             min_salary = f_salary[0]
             max_salary = f_salary[1]
-    return {'min_salary': min_salary, 'max_salary': max_salary}
+    return {'min_salary': min_salary, 'max_salary': max_salary, 'currency': currency}
+
 
 vacances = []
 
@@ -105,8 +112,6 @@ while bl_find:
     response = requests.get(url + '/vacancy/search/', params=my_params, headers=headers)
     id_page += 1
 
-
-
 bl_find = True
 id_page = 2
 
@@ -120,8 +125,8 @@ while bl_find:
 
     vacancy = soup.find_all('div', {'class': 'vacancy-serp-item'})
     next_page = soup.find_all('a', {
-        'href': '/search/vacancy?L_is_autosearch=false&clusters=true&enable_snippets=true&text='+find_vacancy.replace(
-    ' ', '+')+'&page=' + str(id_page)},limit=1)
+        'href': '/search/vacancy?L_is_autosearch=false&clusters=true&enable_snippets=true&text=' + find_vacancy.replace(
+            ' ', '+') + '&page=' + str(id_page)}, limit=1)
 
     if len(next_page) == 0:
         bl_find = False
@@ -159,11 +164,9 @@ while bl_find:
         vacances.append([vacancy_name, vacancy_href, vacancy_company, vacancy_location_place, vacancy_location_time,
                          vacancy_salary])
 
-
-    response = requests.get('https://rostov.hh.ru/search/vacancy?L_is_autosearch=false&clusters=true&enable_snippets=true&text='+find_vacancy.replace(
-    ' ', '+')+'&page=' + str(id_page), headers=headers)
+    response = requests.get(
+        'https://rostov.hh.ru/search/vacancy?L_is_autosearch=false&clusters=true&enable_snippets=true&text=' + find_vacancy.replace(
+            ' ', '+') + '&page=' + str(id_page), headers=headers)
     id_page += 1
 
-
 print(json.dumps(vacances, indent=4, sort_keys=True, ensure_ascii=False))
-
