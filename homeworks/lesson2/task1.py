@@ -46,7 +46,7 @@ def get_salary_HH(list_salary):
         if list_salary[0].text.find('до') > -1:
             max_salary = re.findall(r'\d+',list_salary[0].text.replace(' ', ''))[0]
         if list_salary[0].text.find('-') > -1:
-            f_salary = re.findall(r'\d+',list_salary[0].text.replace(' ', ''))[0]
+            f_salary = re.findall(r'\d+',list_salary[0].text.replace(' ', ''))
             min_salary = f_salary[0]
             max_salary = f_salary[1]
     return {'min_salary': min_salary, 'max_salary': max_salary}
