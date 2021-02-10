@@ -29,9 +29,9 @@ def get_salary(list_salary):
             currency = 'USD'
         if list_salary[0].text.find('EUR') > -1:
             currency = 'EUR'
-        if list_salary[0].text.find('от') > -1:
+        if list_salary[0].text.find('от ') > -1:
             min_salary = re.findall(r'\d+', list_salary[0].text.replace(' ', ''))[0]
-        if list_salary[0].text.find('до') > -1:
+        if list_salary[0].text.find('до ') > -1:
             max_salary = re.findall(r'\d+', list_salary[0].text.replace(' ', ''))[0]
         if list_salary[0].text.find('-') > -1 or list_salary[0].text.find('—') > -1:
             f_salary = re.findall(r'\d+', list_salary[0].text.replace(' ', ''))
@@ -52,7 +52,7 @@ def get_salary(list_salary):
 
 vacances = []
 
-find_vacancy = 'Data engineer bank'
+find_vacancy = 'Data engineer'
 url = 'https://russia.superjob.ru'
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.104 Safari/537.36'}
@@ -101,10 +101,9 @@ while True:
     response = requests.get(url + my_href, headers=headers)
     id_page += 1
 
-id_page = 2
+id_page = 1
 url = 'https://rostov.hh.ru'
-my_href = '/search/vacancy?clusters=true&enable_snippets=true&salary=&st=searchVacancy&text=' + find_vacancy.replace(
-    ' ', '+')
+my_href = '/search/vacancy?clusters=true&enable_snippets=true&salary=&st=searchVacancy&text=' + find_vacancy
 response = requests.get(url + my_href, headers=headers)
 
 while True:
@@ -147,8 +146,7 @@ while True:
                          'vacancy_location_time': vacancy_location_time,
                          'vacancy_salary': vacancy_salary})
 
-    my_href = '/search/vacancy?L_is_autosearch=false&clusters=true&enable_snippets=true&text=' + find_vacancy.replace(
-        ' ', '+') + '&page=' + str(id_page)
+    my_href = '/search/vacancy?L_is_autosearch=false&clusters=true&enable_snippets=true&text=' + find_vacancy + '&page=' + str(id_page)
     if len(soup.find_all('a', {'href': my_href}, limit=1)) == 0:
         break
     response = requests.get(url + my_href, headers=headers)
