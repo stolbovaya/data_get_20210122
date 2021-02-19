@@ -54,7 +54,7 @@ for item in items:
 
 pprint(dates)
 
-"""Собираем текстовые новости"""
+"""Собираем текстовые новости c news.mail.ru"""
 
 items = dom.xpath("//a[@class='list__text']|//a[@class='link link_flex']|//a[@class='newsitem__title link-holder']")
 
@@ -72,7 +72,7 @@ for item in items:
     except:
         pass
 
-"""Собираем новости с фотографиями"""
+"""Собираем новости с фотографиями c news.mail.ru"""
 
 items = dom.xpath(
     '//a[@class="photo photo_full photo_scale js-topnews__item"]|//a[@class="photo photo_small photo_scale photo_full js-topnews__item"]|//a[@class="photo photo_small photo_full photo_scale js-show_photo"]')
@@ -89,7 +89,7 @@ for item in items:
         pass
 
 
-"""Собираем новости с https://lenta.ru из секции топ"""
+"""Собираем новости с lenta.ru из секции топ"""
 url = 'https://lenta.ru'
 response = requests.get(url, headers=header)
 
@@ -108,6 +108,25 @@ for item in items:
     except:
         pass
 
+
+"""Собираем новости с yandex-новости"""
+url = 'https://yandex.ru/news/'
+response = requests.get(url, headers=header)
+
+dom = html.fromstring(response.text)
+
+items = dom.xpath("//div[contains(@class,'mg-grid__col_xs')]//div[@class='mg-card__content']")
+
+for item in items:
+    new = {}
+    new['resource'] = url
+    new['name'] = " ".join(item.xpath(".//text()")).replace(' ', ' ')
+    new['href'] = " ".join(item.xpath(".//@href"))
+    new['dt'] = " ".join(item.xpath(".//span[@class='mg-card-source__time']//text()"))
+    try:
+        db_news.insert_one(new)
+    except:
+        pass
 
 for new in db_news.find({}, {'_id': False}):
     pprint(new)
