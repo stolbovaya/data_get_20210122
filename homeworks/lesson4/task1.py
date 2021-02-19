@@ -88,5 +88,26 @@ for item in items:
     except:
         pass
 
+
+"""Собираем новости с https://lenta.ru из секции топ"""
+url = 'https://lenta.ru'
+response = requests.get(url, headers=header)
+
+dom = html.fromstring(response.text)
+
+items = dom.xpath("//section[@class='row b-top7-for-main js-top-seven']//div[@class='item']")
+
+for item in items:
+    new = {}
+    new['resource'] = url
+    new['name'] = " ".join(item.xpath(".//text()")).replace(' ', ' ')
+    new['href'] = url+" ".join(item.xpath(".//@href"))
+    new['dt'] = " ".join(item.xpath(".//@datetime"))
+    try:
+        db_news.insert_one(new)
+    except:
+        pass
+
+
 for new in db_news.find({}, {'_id': False}):
     pprint(new)
