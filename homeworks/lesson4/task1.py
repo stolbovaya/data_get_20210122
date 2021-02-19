@@ -36,6 +36,12 @@ dom = html.fromstring(response.text)
 news = []
 dates = []
 str_now = str(datetime.datetime.now())
+client = MongoClient('127.0.0.1', 27017)
+db = client['news2021']
+db_news = db.news
+
+# db_news.delete_many({})
+# db_news.create_Index({"href": 1}, {"unique": True})
 
 items = dom.xpath("//div[@class='cols__inner']")
 
@@ -61,7 +67,10 @@ for item in items:
 
     new['dt'] = get_datetime(dates, new['href'], str_now)
 
-    news.append(new)
+    try:
+        db_news.insert_one(new)
+    except:
+        pass
 
 """Собираем новости с фотографиями"""
 
@@ -74,8 +83,10 @@ for item in items:
     new['name'] = " ".join(item.xpath(".//span[contains(@class,'photo__title')]//text()")).replace(' ', ' ')
     new['href'] = item.xpath(".//@href")
     new['dt'] = get_datetime(dates, new['href'], str_now)
+    try:
+        db_news.insert_one(new)
+    except:
+        pass
 
-    news.append(new)
-
-pprint(news)
-
+for new in db_news.find({}, {'_id': False}):
+    pprint(new)
