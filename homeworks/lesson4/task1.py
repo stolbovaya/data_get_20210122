@@ -35,14 +35,14 @@ response = requests.get(url, headers=header)
 
 dom = html.fromstring(response.text)
 
-items = dom.xpath("//a[@class='list__text']|//a[@class='link link_flex']|"
-                  "//a[@class='newsitem__title link-holder']|"
-                  "//a[@class='photo photo_full photo_scale js-topnews__item']|"
-                  "//a[@class='photo photo_small photo_scale photo_full js-topnews__item']")
+items = dom.xpath("//li//a|"
+                  "//span[contains(@class,'cell')]/a[contains(@class,'newsitem')]|"
+                  "//div[contains(@class,'daynews')]/a")
+
 
 for item in items:
     new = {}
-    new['href'] = " ".join(item.xpath(".//@href"))
+    new['href'] = " ".join(item.xpath("./@href"))
 
     url_in = new['href']
     response_in = requests.get(url_in, headers=header)
