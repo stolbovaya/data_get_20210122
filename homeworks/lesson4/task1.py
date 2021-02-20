@@ -14,25 +14,9 @@ from pymongo import MongoClient
 from pprint import pprint
 import datetime
 
-
-def get_datetime(fdates, href, fnow):
-    for fdt_item in fdates:
-        try:
-            if fdt_item.get('hrefs').index(href) > -1:
-                return fdt_item.get('datetime')
-
-        except ValueError:
-            pass
-    return fnow
-
-
 header = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36'}
 
-url = 'https://news.mail.ru'
-response = requests.get(url, headers=header)
-
-dom = html.fromstring(response.text)
 news = []
 dates = []
 str_now = str(datetime.datetime.now())
@@ -43,86 +27,78 @@ db_news = db.news
 # db_news.delete_many({})
 # db_news.create_Index({"href": 1}, {"unique": True})
 
-items = dom.xpath("//div[@class='cols__inner']")
 
-for item in items:
-    dt = {}
-    dt['datetime'] = " ".join(item.xpath('.//span[@datetime]/@datetime'))
-    dt['hrefs'] = item.xpath('.//@href')
+"""----------------------Собираем новости c news.mail.ru----------------------------"""
 
-    dates.append(dt)
+url = 'https://news.mail.ru'
+response = requests.get(url, headers=header)
 
-pprint(dates)
+dom = html.fromstring(response.text)
 
-"""Собираем текстовые новости c news.mail.ru"""
-
-items = dom.xpath("//a[@class='list__text']|//a[@class='link link_flex']|//a[@class='newsitem__title link-holder']")
+items = dom.xpath("//a[@class='list__text']|//a[@class='link link_flex']|"
+                  "//a[@class='newsitem__title link-holder']|"
+                  "//a[@class='photo photo_full photo_scale js-topnews__item']|"
+                  "//a[@class='photo photo_small photo_scale photo_full js-topnews__item']")
 
 for item in items:
     new = {}
-    new['resource'] = url
-    new['name'] = " ".join(item.xpath(".//text()")).replace(' ', ' ').replace('\r', '').replace('\n', '').replace("'",
-                                                                                                                  '')
     new['href'] = " ".join(item.xpath(".//@href"))
 
-    new['dt'] = get_datetime(dates, new['href'], str_now)
+    url_in = new['href']
+    response_in = requests.get(url_in, headers=header)
+    dom_in = html.fromstring(response_in.text)
+
+    new['dt'] = " ".join(dom_in.xpath("//div[@class='breadcrumbs breadcrumbs_article js-ago-wrapper']//@datetime"))
+    new['name'] = " ".join(dom_in.xpath("//h1[@class='hdr__inner']/text()"))
+    new['resource'] = " ".join(dom_in.xpath(
+        "//div[@class='breadcrumbs breadcrumbs_article js-ago-wrapper']//span[@class='link__text']/text()"))
 
     try:
         db_news.insert_one(new)
     except:
         pass
 
-"""Собираем новости с фотографиями c news.mail.ru"""
+"""---------------------Собираем новости с lenta.ru из секции топ----------------------------"""
 
-items = dom.xpath(
-    '//a[@class="photo photo_full photo_scale js-topnews__item"]|//a[@class="photo photo_small photo_scale photo_full js-topnews__item"]|//a[@class="photo photo_small photo_full photo_scale js-show_photo"]')
-
-for item in items:
-    new = {}
-    new['resource'] = url
-    new['name'] = " ".join(item.xpath(".//span[contains(@class,'photo__title')]//text()")).replace(' ', ' ')
-    new['href'] = item.xpath(".//@href")
-    new['dt'] = get_datetime(dates, new['href'], str_now)
-    try:
-        db_news.insert_one(new)
-    except:
-        pass
-
-
-"""Собираем новости с lenta.ru из секции топ"""
 url = 'https://lenta.ru'
 response = requests.get(url, headers=header)
 
 dom = html.fromstring(response.text)
 
-items = dom.xpath("//section[@class='row b-top7-for-main js-top-seven']//div[@class='item']")
+items = dom.xpath(
+    "//section[@class='row b-top7-for-main js-top-seven']//div[@class='item']|"
+    "//section[@class='row b-top7-for-main js-top-seven']//h2")
 
 for item in items:
     new = {}
     new['resource'] = url
-    new['name'] = " ".join(item.xpath(".//text()")).replace(' ', ' ')
-    new['href'] = url+" ".join(item.xpath(".//@href"))
+    new['name'] = " ".join(item.xpath(".//text()")).replace(' ', ' ')[6:]
+    new['href'] = url + " ".join(item.xpath(".//@href"))
     new['dt'] = " ".join(item.xpath(".//@datetime"))
     try:
         db_news.insert_one(new)
     except:
         pass
 
+"""-------------------Собираем новости с yandex-новости----------------------------"""
 
-"""Собираем новости с yandex-новости"""
 url = 'https://yandex.ru/news/'
 response = requests.get(url, headers=header)
 
 dom = html.fromstring(response.text)
 
-items = dom.xpath("//div[contains(@class,'mg-grid__col_xs')]//div[@class='mg-card__content']")
+items = dom.xpath("//article[contains(@class,'mg-card')]")
 
 for item in items:
     new = {}
-    new['resource'] = url
-    new['name'] = " ".join(item.xpath(".//text()")).replace(' ', ' ')
-    new['href'] = " ".join(item.xpath(".//@href"))
+    new['resource'] = " ".join(item.xpath(".//@aria-label"))[10:]
+    new['name'] = " ".join(item.xpath(".//h2[@class='mg-card__title']/text()")).replace(' ', ' ')
+    new['href'] = " ".join(item.xpath(".//div/a/@href"))
     new['dt'] = " ".join(item.xpath(".//span[@class='mg-card-source__time']//text()"))
+    if new['dt'].count('вчера в') > 0:
+        new['dt'] = str(datetime.date.today() - datetime.timedelta(days=1)) + new['dt'][7:]
+    else:
+        new['dt'] = str(datetime.date.today()) + ' ' + new['dt']
     try:
         db_news.insert_one(new)
     except:
