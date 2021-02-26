@@ -54,12 +54,12 @@ def authorization_mail_ru(username, password):
 
 driver = authorization_mail_ru("study.ai_172@mail.ru", "NextPassword172")
 
+#-----------Ждем загрузку страницы-------------------------------------
 el = WebDriverWait(driver, 30).until(
     EC.presence_of_element_located((By.CLASS_NAME, "application-mail")))
 el = WebDriverWait(driver, 30).until(
     EC.presence_of_element_located((By.CLASS_NAME, "llc")))
-
-ii = 0
+#----------------------------------------------------------------------
 letters_href = set()
 last_el = ''
 
