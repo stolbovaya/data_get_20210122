@@ -62,6 +62,7 @@ el = WebDriverWait(driver, 30).until(
 ii = 0
 letters_href = set()
 last_el = ''
+
 while True:
 
     letters_el = driver.find_elements_by_class_name("js-letter-list-item")
@@ -83,6 +84,8 @@ for el in letters_href:
     driver.get(el)
     letters.append(get_letter(driver))
 
+driver.close()
+
 client = MongoClient('127.0.0.1', 27017)
 db = client['mail_2021']
 db_mail = db.mail
@@ -91,5 +94,5 @@ db_mail.insert_many(letters)
 for mail in db_mail.find({}, {'_id': False}):
     pprint(mail)
 
-driver.close()
+
 
